@@ -1,0 +1,71 @@
+---
+title: "R Tibbles"
+output: html_notebook
+---
+
+#### Reference
+[Link](https://r4ds.had.co.nz/tibbles.html)
+
+
+#### Creating Tibbles
+
+* `as_tibble`
+
+```{r as_tibble}
+as_tibble(iris)
+```
+
+* `tibble`
+```{r tibble}
+tibble(
+  x = 1:5,
+  y = 2,
+  z = x^2+y
+)
+```
+
+* `tribble` - transposed tibble. The column headings are defined by formulas (start with ~), and entries are separated by commas.
+
+```{r tribble}
+#add a commented line to know where the header is
+tribble(
+  ~x, ~y, ~z,
+ #--| --| --|
+ "a", 2, 32,
+ "b", 1, 15
+)
+```
+
+
+
+It’s okay for a tibble to have column names that are not valid R variable names, aka non-syntactic names. For example, they might not start with a letter, or they might contain unusual characters like a space. You need to surround them with backticks, `:
+
+```{r backtick}
+tb <- tibble(
+  `:)` = "smile",
+  `200` = "number"
+)
+
+tb
+```
+
+
+#### Subsetting
+
+`[[` can extract by name or position; `$` only extracts by name but is a little less typing.
+
+```{r subsetting}
+df <- tibble(
+  x = runif(5),
+  y = rnorm(5)
+)
+
+# Extract by name
+df$x
+
+df[["x"]]
+
+# Extract by position
+df[[1]]
+```
+

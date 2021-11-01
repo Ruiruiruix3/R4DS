@@ -1,0 +1,232 @@
+---
+title: "R Data Transformation"
+output: html_notebook
+---
+
+#### Reference
+[Link](https://r4ds.had.co.nz/transform.html)
+
+#### Prerequisites
+Set the R environment with `tidyverse` and `nycflights13`.
+
+```{r packages}
+library(tidyverse)
+library(nycflights13)
+```
+
+```{r head}
+head(flights)
+summary(flights$dep_time)
+```
+
+
+#### Filter
+* `filter()`
+
+```{r filter}
+(dec25 <- filter(flights, month == 12, day == 25))
+```
+
+Computers use finite precision arithmetic so remember that every number you see is an approximation. Instead of relying on ==, use `near()`:
+
+```{r near}
+1/49*49 == 1 #False
+
+near(1/49*49, 1) #True
+```
+
+
+`%in%`
+
+```{r %in%}
+(nov_dec <- filter(flights, month %in% c(11,12)))
+```
+
+De Morgan's law:
+* !(x & y) is the same as !x | !y 
+* !(x | y) is the same as !x & !y
+
+```{r De Morgan’s law}
+#both give the same result
+filter(flights, !(arr_delay > 120 | dep_delay > 120))
+filter(flights, arr_delay <= 120, dep_delay <= 120)
+```
+
+
+`between()`
+
+```{r between}
+filter(flights, between(month, 7, 9)) #(month >= 7 & month <= 9)
+```
+
+
+
+`is.na()`
+
+`filter()` only includes TRUE; it excludes both FALSE and NA values. If you want to preserve missing values, ask for them explicitly.
+```{r is.na}
+x <- NA
+is.na(x)
+```
+
+`%%` reminder operator returns the remainder of division.
+
+```{r %%}
+c(6, 15, 25) %% 6
+```
+`%/%` integer division
+```{r %/%}
+10%/%4
+```
+
+
+
+#### Arrange
+* `arrange()`
+
+```{r arrange1}
+arrange(flights, year, month, desc(day))
+
+#Missing values are always sorted at the end.
+df <- tibble(y = c(5, 8, 15, NA)) 
+arrange(df, desc(y))
+```
+
+
+```{r arrange2}
+arrange(flights, desc(is.na(dep_time)), dep_time) #use arrange() to sort all missing values to the start
+```
+
+
+#### Select
+Below can use within select.
+
+* `starts_with()`
+* `ends_with()`
+* `contains()`
+* `matches()` - regular expression
+* `num_range()`
+* `everything()`
+* `any_of()`
+* `all_of()`
+
+```{r select}
+select(flights, year, month, day)
+select(flights, year:day)
+select(flights, -(year:day)) #Select all columns except those from year to day (inclusive)
+
+select(flights, day, month, carrier, everything()) #change the order of column without having to specify the names of all the columns.
+
+
+variables <- c("dep_time", "dep_delay", "arr_time", "arr_delay")
+select(flights, all_of(variables))
+
+select(flights, starts_with("dep_"), starts_with("arr_"))
+```
+
+`rename()`
+```{r rename}
+rename(flights, year2013 = year)
+```
+
+
+* `mutate()`
+* `transmute()` - only to keep the new variable
+
+```{r mutate}
+flight_small <- select(flights, month, day, distance, air_time)
+
+mutate(flight_small, speed = distance/air_time)
+
+transmute(flight_small, speed = distance/air_time)
+```
+
+Ranking
+
+* `min_rank()`
+* `row_number()`
+* `dense_rank()`
+
+```{r ranking}
+rankme <- tibble(x = c(10, 5, 1, 5, 5))
+rankme <- mutate(rankme, 
+                 min_rank = min_rank(x),
+                 row_number = row_number(x),
+                 dense_rank = dense_rank(x))
+arrange(rankme, x)
+```
+
+
+* `top_n()`
+
+```{r top_n, echo=TRUE}
+flight_small %>% top_n(5, air_time) %>% 
+  arrange(desc(air_time))
+```
+
+* `slice()`
+
+```{r slice}
+flight_small %>% slice(1:6)
+```
+
+#### Summarise by Group_by
+
+```{r summaise}
+not_cancelled <- flights %>% 
+  filter(!is.na(dep_delay), !is.na(arr_delay))
+
+not_cancelled %>% 
+  group_by(year, month, day) %>% 
+  summarise(
+    mean = mean(dep_delay)
+  )
+
+delay_flight <- not_cancelled %>% 
+  group_by(tailnum) %>% 
+  summarise(
+    avg_delay = mean(arr_delay)
+  )
+
+ggplot(delay_flight, mapping = aes(x= avg_delay))+
+  geom_freqpoly(binwidth=10)
+```
+
+
+It’s always a good to include either a count `n()`, or a count of non-missing values `sum(!is.na(x))`. So that you can ensure you’re not drawing conclusions based on very small amounts of data.
+
+```{r n()}
+delay_flight <- not_cancelled %>% 
+  group_by(tailnum) %>% 
+  summarise(
+    avg_delay = mean(arr_delay, na.rm=T),
+    n = n()
+  ) 
+
+ggplot(delay_flight, aes(n, avg_delay))+
+  geom_point(alpha = 1/10)
+```
+
+#### Useful summary functions
+
+* measure of location: `median()`, `mean()`
+* measure of spread: `sd()`, `IQR()`, `mad()`
+* measure of rank: `min()`, `quantile(x, 0.25)`, `max()`
+* measure of position: `first()`, `last()`, `nth(x, 2)`
+* count: `n()`, `sum(!is.na(x))`, `n_distinct()`
+
+#### Ungrouping
+
+```{r ungrouping}
+daily <- group_by(flights, year, month, day)
+
+(per_daily <- daily %>% 
+  summarise(
+    flight = n()
+  ))
+
+per_daily %>% 
+  ungroup() %>% 
+  summarise(flight = n())
+```
+

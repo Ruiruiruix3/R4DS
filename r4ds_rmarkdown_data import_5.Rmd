@@ -1,0 +1,63 @@
+---
+title: "R Data Import"
+output: html_notebook
+---
+
+#### Reference
+[Link](https://r4ds.had.co.nz/data-import.html)
+
+
+* `read_csv()` - It creates column specification to show column's type. It is also faster than then base R read function `read.csv`.
+
+```{r read_csv}
+hotel <- read_csv("~/R/R_self study/Course_code_Coursera/hotel_bookings.csv")
+```
+
+
+
+```{r first line}
+#read_csv uses the first line of the data for the column names.
+read_csv("a, b, c
+1, 2, 3
+4, 5, 6")
+```
+
+
+Sometimes there are a few lines of metadata at the top of the file. You can use `skip = n` to skip the first n lines; or use `comment = "#"` to drop all lines that start with (e.g.) #.
+
+```{r skip=n}
+read_csv("The first line of metadata
+         The second line of metadata
+         x, y, z
+         1,2,3", skip=2)
+```
+
+```{r comment}
+read_csv("# A line of commment I want to skip
+         x, y, z
+         3, 2,1", comment = "#")
+```
+
+
+The data might not have column names. You can use `col_names = FALSE` to tell `read_csv()` not to treat the first row as headings, and instead label them sequentially from X1 to Xn.
+
+```{r col_names}
+read_csv("1,2,3
+         13, 15, 20", col_names = F)
+```
+
+Alternatively, you can pass `col_names` a character vector which will be used as the column names:
+
+```{r col_names2}
+read_csv("1,2,3\n 15,16,20", col_names = c("x","y","z"))
+```
+
+
+NA in the file:
+
+```{r NA}
+read_csv("a,b,c
+         1,2,3
+         4,.,.", na=".")
+```
+

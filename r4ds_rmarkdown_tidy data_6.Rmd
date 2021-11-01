@@ -1,0 +1,242 @@
+---
+title: "R Tidy Data"
+output: html_notebook
+---
+
+#### Reference
+[Link](https://r4ds.had.co.nz/tidy-data.html)
+
+
+* Pivot longer
+
+```{r pivot_longer}
+table4a
+
+pivot_longer(table4a, c(`1999`, `2000`), names_to = "year", values_to = "cases")
+```
+
+* Pivot wider
+
+```{r pivot_wider}
+table2
+
+pivot_wider(table2, names_from = type, values_from = count)
+```
+
+Example:
+
+```{r tribble, echo=TRUE}
+preg <- tribble(
+  ~pregnant, ~male, ~female,
+  "yes", NA, 10,
+  "no", 20, 12
+)
+
+preg
+```
+
+
+```{r pivot_long2, echo=TRUE}
+preg_tidy <- preg %>% 
+  pivot_longer(c("male", "female"), names_to = "sex", values_to = "count")
+
+preg_tidy
+```
+
+
+
+```{r value_drop_na}
+#remove the (male, pregnant) row with a missing value
+preg_tidy2 <- preg %>% 
+  pivot_longer(c("male", "female"), names_to = "sex", values_to = "count", values_drop_na = T)
+
+preg_tidy2
+```
+
+
+
+
+```{r logical, echo=TRUE}
+preg_tidy3 <- preg_tidy2 %>% 
+  mutate(
+    female = sex == "female",
+    pregnant = pregnant == "yes"
+  ) %>% 
+  select(pregnant, female, count)
+
+preg_tidy3
+```
+
+
+#### Separating and uniting
+
+* `separate()`
+
+```{r seperate}
+table3
+
+table3 %>% 
+  separate(rate, into = c("cases", "population"))
+```
+
+
+By default, `separate()` can detect non-letter/ number character and split based on that character. However, you can specify the character to split the column by using `sep` argument of `separate()`.
+
+```{r sep}
+table3 %>% separate(rate, into = c("cases", "population"), sep = "/")
+```
+
+
+
+Look careful the type of cases and population after separation, they still remain the original type of column (chr). You can use `convert=T` to change it.
+
+
+```{r convert, echo=TRUE}
+table3 %>% 
+  separate(rate, into = c("cases", "population"), convert = T)
+```
+
+
+```{r sep2}
+table_century <- table3 %>% 
+  separate(year, into = c("century", "year"), sep = 2)
+
+table_century
+```
+
+
+* `unite()`
+
+By default, `unite()` will add underscore (_) between values from different columns.
+
+```{r unite}
+table_century %>% 
+  unite(new, century, year)
+```
+
+
+```{r spe3}
+#remove the default underscore
+table_century %>% 
+  unite(new, century, year, sep = "")
+```
+
+
+#### Missing Values
+
+* **Explicitly**: indicated with NA.
+* **Implicitly**: simply not present in the data.
+
+```{r missing value}
+stocks <- tibble(
+  year   = c(2015, 2015, 2015, 2015, 2016, 2016, 2016),
+  qtr    = c(   1,    2,    3,    4,    2,    3,    4),
+  return = c(1.88, 0.59, 0.35,   NA, 0.92, 0.17, 2.66)
+)
+
+stocks %>% 
+  pivot_wider(names_from = year, values_from = return)
+```
+
+
+```{r implicit}
+#if the explicit NA is not important, you can hide it implicitly.
+stocks %>% 
+  pivot_wider(names_from = year, values_from = return) %>% 
+  pivot_longer(c(`2015`, `2016`), names_to = "year", values_to = "return", values_drop_na = T)
+```
+
+* `complete()` - important tool to make missing values explicit.
+
+```{r complete}
+stocks %>% 
+  complete(year, qtr)
+```
+
+
+* `fill()` - can fill up the missing values by last seen value.
+
+```{r missing value2}
+treatment <- tribble(
+  ~ person,           ~ treatment, ~response,
+  "Derrick Whitmore", 1,           7,
+  NA,                 2,           10,
+  NA,                 3,           9,
+  "Katherine Burke",  1,           4
+)
+```
+
+
+```{r fill}
+treatment %>% 
+  fill(person)
+```
+
+
+#### Case Study
+
+`who` is a complicated and messy TB dataset. 
+
+```{r who}
+who
+```
+
+
+```{r who1}
+who1 <-  who %>% 
+  pivot_longer(
+    cols = new_sp_m014:newrel_f65,
+    names_to = "key",
+    values_to = "cases",
+    values_drop_na = T
+  )
+who1
+
+```
+
+
+```{r who2}
+#to standardize the values in key column
+who2 <- who1 %>% 
+  mutate(key = str_replace(key, "newrel", "new_rel"))
+```
+
+
+```{r who3}
+who3 <- who2 %>% 
+  separate(key, into = c("new", "type", "sexage"), sep = "_")
+who3
+```
+
+
+```{r who4}
+#check if all new is the same value
+who3 %>% 
+  count(new)
+
+#remove duplicate column
+who4 <- who3 %>% select(-iso2, -iso3, -new)
+who4
+```
+
+
+```{r who5}
+who5 <- who4 %>% 
+  separate(sexage, into = c("sex", "age"), sep = 1)
+
+who5
+```
+
+
+```{r visualize}
+who5 %>% 
+  group_by(country, year, sex) %>% 
+  filter(year> 1995) %>% 
+  summarise(
+    case = sum(cases)
+  ) %>% 
+  unite(country_sex, country, sex, remove = F) %>% 
+  ggplot(aes(year, case, group = country_sex, color=sex))+
+  geom_line()
+```
+
