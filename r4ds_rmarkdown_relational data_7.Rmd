@@ -1,0 +1,37 @@
+---
+title: "R Relational data"
+output: html_notebook
+---
+
+
+#### Reference
+[Link](https://r4ds.had.co.nz/relational-data.html)
+
+
+* Inner join 
+
+To join of `airports` table with `flights` table.
+
+```{r inner join}
+library(nycflights13)
+
+flight_latlon <- flights %>% 
+  inner_join(select(airports, origin = faa, origin_lat = lat, origin_lon = lon), 
+             by = "origin") %>% 
+  inner_join(select(airports, dest = faa, dest_lat = lat, dest_lon = lon),
+             by = "dest")
+
+flight_latlon %>% 
+  slice(1:100) %>% 
+  ggplot(aes(
+    x= origin_lon, xend= dest_lon,
+    y= origin_lat, yend= dest_lat
+  ))+
+  borders("state")+
+  geom_segment(arrow = arrow(length = unit(0.3, "cm")))+
+  coord_quickmap()+
+  labs(
+    x= "longitude",
+    y= "latitude"
+  )
+```
