@@ -8,6 +8,7 @@ Using R to do:
 6) tidy data
 7) relational data
 8) date and time
+9) factors
 
 # Citation
 
