@@ -1,0 +1,207 @@
+---
+title: "Factors"
+output: html_notebook
+---
+
+#### Reference
+[Link](https://r4ds.had.co.nz/factors.html?q=factor#creating-factors)
+
+
+#### Creating Factors
+
+Let set a variable that record months:
+
+```{r x1}
+x1 <- c("Dec", "Apr", "Jan", "Mar")
+```
+
+
+
+```{r problems}
+#Without using factors, it might has the problem of typo
+x2 <- c("Dec", "Apr", "Jam", "Mar")
+
+#and it does not sort in a meaningful way. 
+sort(x1)
+```
+
+* To create a factor, start with creating a list of valid levels.
+
+```{r level}
+#create level
+month_levels <- c("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+```
+
+
+```{r factor}
+#now can create a factor
+y1 <- factor(x1, levels = month_levels)
+
+y1
+sort(y1)
+```
+
+
+Any values not in the list of level will be converted to NA.
+
+```{r NA}
+y2 <- factor(x2, levels = month_levels)
+
+y2
+```
+
+
+If omit the level, it will be taken from the data in alphabetical order:
+
+```{r omit level}
+factor(x1)
+```
+
+
+Sometime, you may like to keep the order of level as it is appeared in the data. Then you may consider to set the level to `unique(x)` or use `fct_inorder()` after factor.
+
+```{r unique}
+#unique(x)
+f1 <- factor(x1, levels = unique(x1))
+f1
+
+#fct_inorder()
+f2 <- x1 %>% factor() %>% fct_inorder()
+f2
+```
+
+
+If you ever need to access the valid level of factor, you can use `levels()` directly:
+
+```{r access level}
+levels(f1)
+```
+
+#### Example of using factor
+
+We can use the sample data from General Social Survey to study factor.
+
+
+```{r sample}
+gss_cat
+```
+
+
+
+When factor is stored in tibble, it is hard to see the level, you need to use `count()` or bar chart.
+
+```{r count, echo=TRUE}
+gss_cat %>% 
+  count(race)
+```
+
+
+```{r geom_bar, echo=TRUE}
+ggplot(gss_cat, aes(race))+
+  geom_bar()
+```
+
+
+```{r drop, echo=TRUE}
+#by default, ggplot will drop level that doesn't have any values, you can force it to display
+ggplot(gss_cat, aes(race))+
+  geom_bar()+
+  scale_x_discrete(drop = F)
+```
+
+
+
+#### Modifying Factor Order
+
+By using `fct_reorder()` which take 3 arguments to reorder the factor order:
+
+
+```{r fct_reorder}
+#before reorder the factor, it is hard to see any pattern
+relig_tv <- gss_cat %>% 
+  group_by(relig) %>% 
+  summarise(
+    age = mean(age, na.rm=T),
+    tv_hour = mean(tvhours, na.rm=T),
+    n = n()
+  ) 
+
+ggplot(relig_tv, aes(tv_hour, relig))+
+  geom_point()
+
+#use fct_reorder to reorder the factor and the pattern can be seen easily now
+ggplot(relig_tv, aes(tv_hour, fct_reorder(relig, tv_hour)))+
+  geom_point()
+```
+
+Using `fct_infreq()` to order levels in increasing frequency, you may consider to couple it with `fct_rev()`.
+
+```{r fct_infreq}
+gss_cat %>% 
+  mutate(marital = fct_infreq(marital) %>% fct_rev()) %>% 
+  ggplot(aes(marital))+
+  geom_bar()
+```
+
+
+You may use `fct_relevel()` to take any number of levels that you want to move to the front of the line.
+
+
+```{r fct_relevel}
+#to move "Don't know" to the first
+ggplot(relig_tv, aes(tv_hour, fct_relevel(relig, "Don't know")))+
+  geom_point()
+```
+
+
+
+#### Modifying Factor Level
+
+
+* Using `fct_recode()` to rename the level in a factor.
+
+
+```{r fct_recode}
+#simply plot the rincome and it is hard to read the x-axis
+ggplot(gss_cat, aes(rincome))+
+  geom_bar()
+
+#use fct_recode to rename the level
+gss_cat %>% 
+  filter(rincome != c("Not applicable")) %>% 
+  mutate(rincome = fct_recode(rincome, "Lower than $1000" = "Lt $1000")) %>% 
+  mutate(rincome_na = rincome %in% c("Refused", "Don't know", "No answer")) %>% 
+  ggplot(aes(rincome, fill = rincome_na))+
+  geom_bar()+
+  coord_flip()+
+  theme(legend.position = "none")+
+  scale_x_discrete("Respondent Income")+
+  scale_y_continuous("Number of Respondent", labels = scales::comma)
+```
+
+
+* Using `fct_collapse` as a variation of `fct_recode` to collapse many levels.
+
+```{r fct_collapse}
+gss_cat %>% 
+  count(partyid)
+
+gss_cat %>% 
+  mutate(partyid = fct_collapse(partyid,
+   other = c("No answer", "Don't know", "Other party"),
+   rep = c("Strong republican", "Not str republican"),
+   ind = c("Ind,near rep", "Independent", "Ind,near dem"),
+   dem = c("Not str democrat", "Strong democrat")
+  )) %>% 
+  count(partyid)
+```
+
+* Using `fct_lump` to to lump together all the small groups and specify `n` parameter on how many groups (excluding other) we want to keep.
+
+```{r}
+gss_cat %>% 
+  mutate(partyid = fct_lump(partyid, n = 5)) %>% 
+  count(partyid, sort = T)
+```
+
+
