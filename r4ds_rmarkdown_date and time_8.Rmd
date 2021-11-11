@@ -1,0 +1,233 @@
+---
+title: "R Dates and Times"
+output: html_notebook
+---
+
+#### Reference
+[Link](https://r4ds.had.co.nz/dates-and-times.html)
+
+
+#### Lubridate
+
+`lubridate` is not part of core `tidyverse`, we load it only when we want to deal with date/ time.
+
+```{r lubridate}
+library(lubridate)
+library(tidyverse)
+library(nycflights13)
+```
+
+
+#### Creating date/times
+* date 
+* time
+* date-time: in tibble (dttm), elsewhere in R is called `POSIXct`.
+
+```{r today}
+#to get current date/ date-time
+today()
+
+now()
+```
+
+
+#### Create date/time from string
+
+```{r create date}
+#create date from string
+ymd("2017-01-31")
+#> [1] "2017-01-31"
+
+mdy("January 31st, 2017")
+#> [1] "2017-01-31"
+
+dmy("31-Jan-2017")
+#> [1] "2017-01-31"
+
+#this function also takes unquoted numbers
+ymd(20170131)
+#> [1] "2017-01-31"
+```
+
+
+```{r create date-time}
+#create date-time
+ymd_hms("2017-01-31 20:11:59")
+#> [1] "2017-01-31 20:11:59 UTC"
+
+mdy_hm("01/31/2017 08:01")
+#> [1] "2017-01-31 08:01:00 UTC"
+
+#by providing time zone
+ymd(20170131, tz = "UTC")
+#> [1] "2017-01-31 UTC"
+```
+
+
+#### Create date/time from individual components
+
+Individual components of date and time are spread across multiple columns in flights.
+
+```{r flights}
+flights %>% 
+  select(year, month, day, hour, minute)
+```
+
+
+By using `make_date` or `make_datetime` to create a date/time from this kind of input.
+
+
+```{r make_datetime}
+flights %>% 
+  select(year, month, day, hour, minute) %>% 
+  mutate("depature" = make_datetime(year, month, day, hour, minute))
+```
+
+
+#### Example
+
+```{r example}
+#use modulus arithmetic to pull out the hour and minute components
+make_datetime_100 <- function(year, month, day, time){
+  make_datetime(year, month, day, time%/%100, time%%100)
+}
+
+flight_dt <- flights %>%
+  filter(!is.na(arr_time), !is.na(dep_time)) %>% 
+  mutate(
+    dep_time = make_datetime_100(year, month, day, dep_time),
+    arr_time = make_datetime_100(year, month, day, arr_time),
+    sched_dep_time = make_datetime_100(year, month, day, sched_dep_time),
+    sched_arr_time = make_datetime_100(year, month, day, sched_arr_time)
+  ) %>% 
+  select(origin, dest, ends_with("delay"), ends_with("time"))
+
+flight_dt
+
+#visualize depart time across a year
+ggplot(flight_dt, aes(dep_time))+
+  geom_freqpoly(binwidth=86400) #86400s = 1 day
+
+#visualize within a single day
+flight_dt %>% 
+  filter(dep_time < ymd(20130102)) %>% 
+  ggplot(aes(dep_time))+
+  geom_freqpoly(binwidth=600) #600s = 10 min
+```
+
+
+#### Create date/time from other type
+
+`as_date()` and `as_datetime()`
+
+
+```{r as_date}
+as_date(now())
+#> [1] "2021-11-11"
+
+as_datetime(today())
+#> [1] "2021-11-11 UTC"
+```
+
+
+
+#### Date-time component
+
+* Getting component:
+    * `year()`
+    * `month()`
+    * `mday()` (day of the month)
+    * `yday()` (day of the year)
+    * `wday()` (day of the week)
+    * `hour()`, `minute()`, `second()`
+    
+    
+```{r getting component}
+datetime <- now()
+
+year(datetime) #2021
+month(datetime) #11
+day(datetime) #11
+mday(datetime) #11
+yday(datetime) #315
+wday(datetime) #5
+hour(datetime) #16
+minute(datetime) #17
+second(datetime) #29.96052
+```
+
+
+
+Set `label = TRUE` to return the abbreviated name of the month or day of the week. Set `abbr = FALSE` to return the full name.
+
+```{r label}
+month(datetime, label = T)
+```
+
+```{r abbr}
+wday(datetime, label = T, abbr = F)
+```
+
+
+We can see more flights on the week than weekend:
+
+```{r wday}
+flight_dt %>% 
+  mutate(wday = wday(dep_time, label = T)) %>% 
+  ggplot(aes(wday))+
+  geom_bar()
+```
+
+
+
+You can create a new date-time with `update()` which also allows you to set multiple values at once.
+
+```{r update}
+update(datetime, year = 2022, month = 2, mday = 2, hour = 2)
+```
+
+#### Time spans
+
+* `durations`, which represent an exact number of seconds.
+* `periods`, which represent human units like weeks and months.
+* `intervals`, which represent a starting and ending point.
+
+
+When subtract two dates, you get a difftime object. However, this difftime object records time spans in seconds, minutes, hours, days, or weeks, which cause ambiguous. So, you can use lubridate function of `duration` which always record in second only.
+
+```{r difftime}
+h_age <- today() - ymd(19900521)
+h_age
+```
+
+```{r duration}
+as.duration(h_age)
+```
+
+Duration come with a bunch of convenient constructors:
+
+```{r}
+dseconds(20)
+dminutes(10)
+ddays(3)
+dhours(c(1,5))
+dweeks(0:3)
+dyears(1)
+```
+
+
+```{r}
+♥ 
+```
+
+
+`make_difftime` can be used to get duration of specific units.
+
+```{r}
+make_difftime(60)
+make_difftime(3600, units = "minute")
+make_difftime(day = 100, units = "second")
+make_difftime(hour = 1, minute = -60)
+make_difftime(second = 3, minute = 1.5, hour = 2, day = 6, week = 1)
+```
+
